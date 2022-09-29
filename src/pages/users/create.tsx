@@ -7,6 +7,9 @@ import { Sidebar } from "../../components/Sidebar";
 import * as yup from 'yup';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { SubmitHandler, useForm } from "react-hook-form";
+import { QueryClient, useMutation } from "react-query";
+import { api } from "../../services/api";
+import { useRouter } from "next/router";
 
 type CreateUserFormData = {
     name: string;
@@ -25,12 +28,29 @@ const createUserFormSchema = yup.object().shape({
 });
 
 export default function CreateUser() {
+    const router = useRouter();
+
+    const createUser = useMutation(async (user: CreateUserFormData) => {
+        await api.post('/users', {
+            user: {
+                ...user,
+                created_at: new Date()
+            }
+        })
+    }, {
+        onSuccess: () => {
+            new QueryClient().invalidateQueries('users')
+        }
+    });
+
     const { register, handleSubmit, formState } = useForm({
         resolver: yupResolver(createUserFormSchema)
     });
 
-    const handleCreateUser: SubmitHandler<CreateUserFormData> = (values, event) => {
-        console.log(values)
+    const handleCreateUser: SubmitHandler<CreateUserFormData> = async (values) => {
+        await createUser.mutateAsync(values);
+
+        router.push('/users')
     }
 
     const { errors } = formState;
@@ -88,6 +108,7 @@ export default function CreateUser() {
                                 <Button colorScheme="withAlpha">Cancelar</Button>
                             </Link>
                             <Button 
+                                type="submit"
                                 colorScheme="pink"
                                 isLoading={formState.isSubmitting}
                             >
